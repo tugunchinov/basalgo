@@ -1,10 +1,6 @@
 use std::borrow::Borrow;
 
-struct AVLTree<K: Ord, V> {
-    root: Option<Box<AVLTreeNode<K, V>>>,
-}
-
-struct AVLTreeNode<K: Ord, V> {
+struct AVLTreeNode<K, V> {
     key: K,
     value: V,
     left: Option<Box<AVLTreeNode<K, V>>>,
@@ -12,13 +8,56 @@ struct AVLTreeNode<K: Ord, V> {
 
     /// SAFETY: This pointer lives as long as the node itself.
     /// Used for iterator
-    parent: *const AVLTreeNode<K, V>,
-    // TODO: Так как высоты левых и правых поддеревьев в АВЛ-дереве отличаются максимум на 1
+    parent: *mut AVLTreeNode<K, V>,
+
+    // TODO:
+    // Так как высоты левых и правых поддеревьев в АВЛ-дереве отличаются максимум на 1
     // , то мы будем хранить не всю высоту дерева, а некоторое число, которое будет показывать, какое поддерево больше, или равны ли они, назовём фактор баланса. Таким образом в каждом узле будет храниться 1
     //  — если высота правого поддерева выше левого, 0
     //  — если высоты равны, и −1
     //  — если правое поддерево выше левого.
-    // height: i32,
+    height: usize,
+}
+
+impl<K, V> AVLTreeNode<K, V> {
+    fn left_height(&self) -> usize {
+        self.left.as_ref().map_or(0, |left| left.height)
+    }
+
+    fn right_height(&self) -> usize {
+        self.right.as_ref().map_or(0, |right| right.height)
+    }
+
+    fn update_height(&mut self) {
+        self.height = 1 + self.left_height().max(self.right_height());
+    }
+
+    fn balance_factor(&self) -> i8 {
+        (self.left_height() - self.right_height()) as i8
+    }
+
+    fn update_ancestors_height(&mut self) {
+        self.update_height();
+
+        let mut current_node = self;
+        while let Some(parent_node) = unsafe { current_node.parent.as_mut() } {
+            parent_node.update_height();
+
+            if parent_node.balance_factor() == 0 {
+                return;
+            }
+
+            if parent_node.balance_factor().abs() >= 2 {
+                // TODO: rebalance
+            }
+
+            current_node = parent_node;
+        }
+    }
+}
+
+struct AVLTree<K, V> {
+    root: Option<Box<AVLTreeNode<K, V>>>,
 }
 
 impl<K: Ord, V> AVLTree<K, V> {
@@ -28,16 +67,16 @@ impl<K: Ord, V> AVLTree<K, V> {
 
     fn insert(&mut self, key: K, value: V) -> Option<V> {
         let mut current_node = &mut self.root;
-        let mut parent = std::ptr::null();
+        let mut parent = std::ptr::null_mut();
 
         while let Some(node) = current_node {
             match node.key.cmp(&key) {
                 std::cmp::Ordering::Less => {
-                    parent = &**node;
+                    parent = &mut **node;
                     current_node = &mut node.left
                 }
                 std::cmp::Ordering::Greater => {
-                    parent = &**node;
+                    parent = &mut **node;
                     current_node = &mut node.right
                 }
                 std::cmp::Ordering::Equal => {
@@ -53,6 +92,7 @@ impl<K: Ord, V> AVLTree<K, V> {
             left: None,
             right: None,
             parent,
+            height: 0,
         }));
 
         None
@@ -74,8 +114,20 @@ impl<K: Ord, V> AVLTree<K, V> {
         None
     }
 
-    fn iter(&self) -> AvlTreeIterator<K, V> {
+    fn iter(&self) -> AvlTreeKeyValueIterator<K, V> {
         self.into_iter()
+    }
+
+    fn keys(&self) -> AvlTreeKeyIterator<K, V> {
+        AvlTreeKeyIterator::new(self.root.as_deref(), get_key)
+    }
+
+    fn values(&self) -> AvlTreeValueIterator<K, V> {
+        AvlTreeValueIterator::new(self.root.as_deref(), get_value)
+    }
+
+    fn nodes(&self) -> AvlTreeNodeIterator<K, V> {
+        AvlTreeNodeIterator::new(self.root.as_deref(), get_node)
     }
 }
 
@@ -91,11 +143,54 @@ impl<K: Ord, V> FromIterator<(K, V)> for AVLTree<K, V> {
     }
 }
 
-struct AvlTreeIterator<'a, K: Ord, V> {
-    next_node: Option<&'a AVLTreeNode<K, V>>,
+fn get_key_value<K, V>(node: &AVLTreeNode<K, V>) -> (&K, &V) {
+    (&node.key, &node.value)
 }
 
-impl<'a, K: Ord, V> AvlTreeIterator<'a, K, V> {
+fn get_key<K, V>(node: &AVLTreeNode<K, V>) -> &K {
+    &node.key
+}
+
+fn get_value<K, V>(node: &AVLTreeNode<K, V>) -> &V {
+    &node.value
+}
+
+fn get_node<K, V>(node: &AVLTreeNode<K, V>) -> &AVLTreeNode<K, V> {
+    node
+}
+
+struct AvlTreeIterator<'a, K, V, I> {
+    next_node: Option<&'a AVLTreeNode<K, V>>,
+    get_item_func: fn(&'a AVLTreeNode<K, V>) -> I,
+}
+
+type AvlTreeKeyValueIterator<'a, K, V> = AvlTreeIterator<'a, K, V, (&'a K, &'a V)>;
+
+type AvlTreeKeyIterator<'a, K, V> = AvlTreeIterator<'a, K, V, &'a K>;
+
+type AvlTreeValueIterator<'a, K, V> = AvlTreeIterator<'a, K, V, &'a V>;
+
+type AvlTreeNodeIterator<'a, K, V> = AvlTreeIterator<'a, K, V, &'a AVLTreeNode<K, V>>;
+
+impl<'a, K, V, R> AvlTreeIterator<'a, K, V, R> {
+    fn new(
+        root: Option<&'a AVLTreeNode<K, V>>,
+        get_item_func: fn(&'a AVLTreeNode<K, V>) -> R,
+    ) -> Self {
+        let next_node = root.as_ref().map(|root| {
+            let iter = AvlTreeIterator {
+                next_node: Some(root),
+                get_item_func: get_key_value,
+            };
+            iter.leftmost_node(root)
+        });
+
+        Self {
+            next_node,
+            get_item_func,
+        }
+    }
+
     fn find_successor(&self, node: &'a AVLTreeNode<K, V>) -> Option<&'a AVLTreeNode<K, V>> {
         if let Some(right) = &node.right {
             return Some(self.leftmost_node(right));
@@ -133,12 +228,12 @@ impl<'a, K: Ord, V> AvlTreeIterator<'a, K, V> {
     }
 }
 
-impl<'a, K: Ord, V> Iterator for AvlTreeIterator<'a, K, V> {
-    type Item = (&'a K, &'a V);
+impl<K, V, R> Iterator for AvlTreeIterator<'_, K, V, R> {
+    type Item = R;
 
     fn next(&mut self) -> Option<Self::Item> {
         let current = self.next_node?;
-        let result = (&current.key, &current.value);
+        let result = (self.get_item_func)(current);
         self.next_node = self.find_successor(current);
 
         Some(result)
@@ -147,17 +242,10 @@ impl<'a, K: Ord, V> Iterator for AvlTreeIterator<'a, K, V> {
 
 impl<'a, K: Ord, V> IntoIterator for &'a AVLTree<K, V> {
     type Item = (&'a K, &'a V);
-    type IntoIter = AvlTreeIterator<'a, K, V>;
+    type IntoIter = AvlTreeKeyValueIterator<'a, K, V>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let next_node = self.root.as_ref().map(|root| {
-            let iter = AvlTreeIterator {
-                next_node: Some(root),
-            };
-            iter.leftmost_node(root)
-        });
-
-        AvlTreeIterator { next_node }
+        AvlTreeKeyValueIterator::new(self.root.as_deref(), get_key_value)
     }
 }
 
