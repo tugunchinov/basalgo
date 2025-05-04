@@ -11,18 +11,21 @@ fn test_get_insert_simple() {
     assert_eq!(tree.get(&1), Some(&'a'));
     assert_eq!(tree.get(&2), None);
 
+    assert_eq!(tree.insert(1, 'b'), Some('a'));
+    assert_eq!(tree.get(&1), Some(&'b'));
+
     assert_eq!(tree.insert(2, 'b'), None);
-    assert_eq!(tree.get(&1), Some(&'a'));
+    assert_eq!(tree.get(&1), Some(&'b'));
     assert_eq!(tree.get(&2), Some(&'b'));
     assert_eq!(tree.get(&3), None);
 
     assert_eq!(tree.insert(3, 'c'), None);
-    assert_eq!(tree.get(&1), Some(&'a'));
+    assert_eq!(tree.get(&1), Some(&'b'));
     assert_eq!(tree.get(&2), Some(&'b'));
     assert_eq!(tree.get(&3), Some(&'c'));
     assert_eq!(tree.get(&4), None);
 
-    assert_eq!(tree.insert(1, 'd'), Some('a'));
+    assert_eq!(tree.insert(1, 'd'), Some('b'));
     assert_eq!(tree.insert(2, 'e'), Some('b'));
     assert_eq!(tree.insert(3, 'f'), Some('c'));
 
@@ -50,6 +53,37 @@ fn test_get_insert(values: Vec<(i32, char)>, keys: Vec<i32>) -> bool {
     }
 
     true
+}
+
+#[test]
+fn test_remove_simple() {
+    let mut tree = AVLTree::new();
+
+    assert_eq!(tree.remove(&1), None);
+
+    assert_eq!(tree.insert(1, 'a'), None);
+    assert_eq!(tree.insert(2, 'b'), None);
+    assert_eq!(tree.insert(3, 'c'), None);
+
+    assert_eq!(tree.remove(&1), Some('a'));
+
+    assert_eq!(tree.get(&1), None);
+    assert_eq!(tree.get(&2), Some(&'b'));
+    assert_eq!(tree.get(&3), Some(&'c'));
+
+    assert_eq!(tree.remove(&2), Some('b'));
+
+    assert_eq!(tree.get(&1), None);
+    assert_eq!(tree.get(&2), None);
+    assert_eq!(tree.get(&3), Some(&'c'));
+
+    assert_eq!(tree.remove(&3), Some('c'));
+
+    assert_eq!(tree.get(&1), None);
+    assert_eq!(tree.get(&2), None);
+    assert_eq!(tree.get(&3), None);
+
+    assert_eq!(tree.remove(&1), None);
 }
 
 #[quickcheck]
@@ -95,8 +129,7 @@ fn test_corner_cases() {
     assert!(!tree.is_empty());
     assert_eq!(tree.size(), 1);
 
-    // TODO:
-    // assert_eq!(tree.remove(&1), Some('a'));
+    assert_eq!(tree.remove(&1), Some('a'));
     assert!(tree.is_empty());
     assert_eq!(tree.size(), 0);
 
@@ -275,19 +308,9 @@ fn test_tree_invariants(values: Vec<(i32, char)>) -> bool {
 
 #[test]
 fn playground() {
-    let mut tree = AVLTree::new();
+    let vals = vec![(7, 'a'), (5, 'b'), (10, 'c'), (6, 'd')];
+    let tree = vals.into_iter().collect::<AVLTree<_, _>>();
 
-    tree.insert(0, '\0');
-    println!("{}", tree.root.as_ref().unwrap().height);
-
-    tree.insert(1, '\0');
-    println!(
-        "{}",
-        tree.root
-            .as_ref()
-            .map(|node| node.right.as_ref().unwrap())
-            .map(|node| node.height)
-            .unwrap()
-    );
-    println!("{}", tree.root.as_ref().unwrap().height);
+    let vals = tree.iter().collect::<Vec<_>>();
+    println!("{:?}", vals);
 }

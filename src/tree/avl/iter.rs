@@ -35,13 +35,7 @@ impl<'a, K, V, R> AvlTreeIterator<'a, K, V, R> {
         root: Option<&'a AVLTreeNode<K, V>>,
         get_item_func: fn(&'a AVLTreeNode<K, V>) -> R,
     ) -> Self {
-        let next_node = root.as_ref().map(|root| {
-            let iter = AvlTreeIterator {
-                next_node: Some(root),
-                get_item_func: get_key_value,
-            };
-            iter.leftmost_node(root)
-        });
+        let next_node = root.as_ref().map(|root| root.find_leftmost_node());
 
         Self {
             next_node,
@@ -51,7 +45,7 @@ impl<'a, K, V, R> AvlTreeIterator<'a, K, V, R> {
 
     fn find_successor(&self, node: &'a AVLTreeNode<K, V>) -> Option<&'a AVLTreeNode<K, V>> {
         if let Some(right) = &node.right {
-            return Some(self.leftmost_node(right));
+            return Some(right.find_leftmost_node());
         }
 
         let mut current = node;
@@ -73,16 +67,6 @@ impl<'a, K, V, R> AvlTreeIterator<'a, K, V, R> {
         }
 
         None
-    }
-
-    fn leftmost_node(&self, node: &'a AVLTreeNode<K, V>) -> &'a AVLTreeNode<K, V> {
-        let mut current = node;
-
-        while let Some(left) = &current.left {
-            current = left;
-        }
-
-        current
     }
 }
 

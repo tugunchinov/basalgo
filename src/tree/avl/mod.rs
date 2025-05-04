@@ -53,7 +53,7 @@ impl<K: Ord, V> AVLTree<K, V> {
             // Start rebalancing from the parent of the inserted node
             if !node.parent.is_null() {
                 let parent_node = unsafe { &mut *node.parent };
-                self.update_heights_and_rebalance(parent_node);
+                self.update_heights_and_rebalance(parent_node, 0);
             }
         }
 
@@ -78,6 +78,33 @@ impl<K: Ord, V> AVLTree<K, V> {
         None
     }
 
+    pub fn contains<Q: Borrow<K>>(&self, key: &Q) -> bool {
+        self.get(key).is_some()
+    }
+
+    pub fn remove<Q: Borrow<K>>(&mut self, key: &Q) -> Option<V> {
+        let to_remove_opt = {
+            let mut current = &mut self.root;
+            while current.is_some() {
+                match key.borrow().cmp(&current.as_ref().unwrap().key) {
+                    std::cmp::Ordering::Less => current = &mut current.as_mut().unwrap().left,
+                    std::cmp::Ordering::Greater => current = &mut current.as_mut().unwrap().right,
+                    std::cmp::Ordering::Equal => break,
+                }
+            }
+
+            current.take()
+        };
+
+        if let Some(to_remove) = to_remove_opt {
+            let removed = self.remove_node(to_remove);
+            self.size -= 1;
+            Some(removed.value)
+        } else {
+            None
+        }
+    }
+
     pub fn size(&self) -> usize {
         self.size
     }
@@ -88,21 +115,15 @@ impl<K: Ord, V> AVLTree<K, V> {
 
     pub fn min(&self) -> Option<(&K, &V)> {
         self.root.as_ref().map(|root| {
-            let mut current = root;
-            while let Some(left) = &current.left {
-                current = left;
-            }
-            (&current.key, &current.value)
+            let node = root.find_leftmost_node();
+            (&node.key, &node.value)
         })
     }
 
     pub fn max(&self) -> Option<(&K, &V)> {
         self.root.as_ref().map(|root| {
-            let mut current = root;
-            while let Some(right) = &current.right {
-                current = right;
-            }
-            (&current.key, &current.value)
+            let node = root.find_rightmost_node();
+            (&node.key, &node.value)
         })
     }
 
@@ -120,12 +141,12 @@ impl<K: Ord, V> AVLTree<K, V> {
 }
 
 impl<K, V> AVLTree<K, V> {
-    fn update_heights_and_rebalance(&mut self, from_node: &mut AVLTreeNode<K, V>) {
+    fn update_heights_and_rebalance(&mut self, from_node: &mut AVLTreeNode<K, V>, stop_factor: i8) {
         let mut current_node = from_node;
         loop {
             current_node.update_height();
 
-            if current_node.balance_factor() == 0 {
+            if current_node.balance_factor().abs() == stop_factor {
                 return;
             }
 
@@ -158,7 +179,7 @@ impl<K, V> AVLTree<K, V> {
                     }
                 }
 
-                if current_node.balance_factor() == 0 {
+                if current_node.balance_factor().abs() == stop_factor {
                     return;
                 }
             }
@@ -169,6 +190,78 @@ impl<K, V> AVLTree<K, V> {
                 break;
             }
         }
+    }
+
+    fn remove_node(&mut self, mut node: Box<AVLTreeNode<K, V>>) -> Box<AVLTreeNode<K, V>> {
+        let parent_node = unsafe { node.parent.as_mut() };
+
+        if node.left.is_none() && node.right.is_none() {
+            if let Some(parent_node) = parent_node {
+                // TODO: can't check parent: it's taken!!!!!!!!!!!!!!!!!
+
+                parent_node.replace_child(&mut node, None);
+                self.update_heights_and_rebalance(parent_node, 1);
+            } else {
+                return node;
+            }
+        } else if node.left.is_some() && node.right.is_some() {
+            let successor_ref = node.right.as_ref().unwrap().find_leftmost_node();
+            let successor_parent = successor_ref.parent;
+
+            let successor_node = self
+                .get_mutable_node_reference(successor_ref)
+                .take()
+                .unwrap();
+
+            // swap nodes
+
+            let mut successor_ref;
+            if let Some(parent_node) = parent_node {
+                successor_ref = parent_node.replace_child(&mut node, Some(successor_node));
+            } else {
+                self.root = Some(successor_node);
+                successor_ref = self.root.as_mut().unwrap();
+                successor_ref.parent = std::ptr::null_mut();
+            };
+
+            successor_ref.left = node.left.take();
+
+            if std::ptr::eq(&**node.right.as_ref().unwrap(), successor_ref) {
+                node.right = None;
+            } else {
+                std::mem::swap(&mut node.right, &mut successor_ref.right);
+
+                let replacing_node = {
+                    let successor_parent = unsafe { &mut *successor_parent };
+                    successor_parent.left = node.right.take();
+                    successor_parent.left.as_mut()
+                };
+
+                if let Some(node) = replacing_node {
+                    node.parent = successor_parent;
+                }
+            }
+
+            let successor_parent = unsafe { &mut *successor_parent };
+            self.update_heights_and_rebalance(successor_parent, 1);
+        } else {
+            let mut child = if node.left.is_some() {
+                node.left.take().unwrap()
+            } else {
+                node.right.take().unwrap()
+            };
+
+            if let Some(parent_node) = parent_node {
+                parent_node.replace_child(&mut node, Some(child));
+                self.update_heights_and_rebalance(parent_node, 1);
+            } else {
+                child.parent = std::ptr::null_mut();
+                self.root = Some(child);
+                return node;
+            }
+        }
+
+        node
     }
 
     /// Panics if a node is not in the tree
@@ -191,16 +284,12 @@ impl<K, V> AVLTree<K, V> {
 
         let parent = unsafe { &mut *node.parent };
 
-        if let Some(left_ptr) = parent.left.as_deref() {
-            if std::ptr::eq(left_ptr, node) {
-                return &mut parent.left;
-            }
+        if parent.is_left_child(node) {
+            return &mut parent.left;
         }
 
-        if let Some(right_ptr) = parent.right.as_deref() {
-            if std::ptr::eq(right_ptr, node) {
-                return &mut parent.right;
-            }
+        if parent.is_right_child(node) {
+            return &mut parent.right;
         }
 
         panic!("broken tree");
