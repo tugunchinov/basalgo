@@ -14,6 +14,7 @@ pub struct AVLTreeNode<K, V> {
     //  — если высота правого поддерева выше левого, 0
     //  — если высоты равны, и −1
     //  — если правое поддерево выше левого.
+    // TODO: use stop_factor
     pub height: u32,
 }
 
@@ -75,28 +76,6 @@ impl<K, V> AVLTreeNode<K, V> {
         self.right
             .as_ref()
             .is_some_and(|node| std::ptr::eq(&**node, other))
-    }
-
-    pub fn replace_child(
-        &mut self,
-        old_child: &mut AVLTreeNode<K, V>,
-        mut new_child: Option<Box<AVLTreeNode<K, V>>>,
-    ) -> &mut AVLTreeNode<K, V> {
-        old_child.parent = std::ptr::null_mut();
-
-        if let Some(new_child) = new_child.as_mut() {
-            new_child.parent = self;
-        }
-
-        if self.is_left_child(old_child) {
-            self.left = new_child;
-            return self.left.as_mut().unwrap();
-        } else if self.is_right_child(old_child) {
-            self.right = new_child;
-            return self.right.as_mut().unwrap();
-        }
-
-        unreachable!("broken tree")
     }
 
     pub fn rotate_left(node: &mut Option<Box<AVLTreeNode<K, V>>>) {

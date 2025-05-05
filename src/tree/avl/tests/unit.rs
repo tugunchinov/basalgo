@@ -65,19 +65,27 @@ fn test_remove_simple() {
     assert_eq!(tree.insert(2, 'b'), None);
     assert_eq!(tree.insert(3, 'c'), None);
 
+    assert!(tree.check_parent_references());
+
     assert_eq!(tree.remove(&1), Some('a'));
 
     assert_eq!(tree.get(&1), None);
     assert_eq!(tree.get(&2), Some(&'b'));
     assert_eq!(tree.get(&3), Some(&'c'));
 
+    assert!(tree.check_parent_references());
+
     assert_eq!(tree.remove(&2), Some('b'));
+
+    assert!(tree.check_parent_references());
 
     assert_eq!(tree.get(&1), None);
     assert_eq!(tree.get(&2), None);
     assert_eq!(tree.get(&3), Some(&'c'));
 
     assert_eq!(tree.remove(&3), Some('c'));
+
+    assert!(tree.check_parent_references());
 
     assert_eq!(tree.get(&1), None);
     assert_eq!(tree.get(&2), None);
@@ -129,13 +137,20 @@ fn test_corner_cases() {
     assert!(!tree.is_empty());
     assert_eq!(tree.size(), 1);
 
+    assert!(tree.check_parent_references());
+
     assert_eq!(tree.remove(&1), Some('a'));
     assert!(tree.is_empty());
     assert_eq!(tree.size(), 0);
 
+    assert!(tree.check_parent_references());
+
     // Test with multiple identical values
     tree.insert(1, 'a');
     tree.insert(1, 'b');
+
+    assert!(tree.check_parent_references());
+
     assert_eq!(tree.size(), 1);
     assert_eq!(tree.get(&1), Some(&'b'));
 }
@@ -241,7 +256,7 @@ fn test_tree_structure() {
 
 #[quickcheck]
 fn test_tree_invariants(values: Vec<(i32, char)>) -> bool {
-    let tree = values.into_iter().collect::<AVLTree<_, _>>();
+    let mut tree = values.iter().cloned().collect::<AVLTree<_, _>>();
 
     // Check if the tree satisfies the BST property
     fn is_bst<K: Ord, V>(
@@ -304,6 +319,349 @@ fn test_tree_invariants(values: Vec<(i32, char)>) -> bool {
     is_bst(&tree.root, None, None)
         && is_balanced(&tree.root)
         && has_correct_parent_pointers(&tree.root, std::ptr::null())
+}
+
+#[test]
+fn test_remove_cases() {
+    let mut tree = AVLTree::new();
+
+    // Build a specific tree structure for testing the three removal cases:
+    //        5
+    //       / \
+    //      3   7
+    //     / \ / \
+    //    2  4 6  8
+
+    tree.insert(5, 'e');
+    tree.insert(3, 'c');
+    tree.insert(7, 'g');
+    tree.insert(2, 'b');
+    tree.insert(4, 'd');
+    tree.insert(6, 'f');
+    tree.insert(8, 'h');
+
+    assert!(tree.check_parent_references());
+
+    // Case 1: Remove leaf node (2)
+    assert_eq!(tree.remove(&2), Some('b'));
+    assert_eq!(tree.get(&2), None);
+
+    assert!(tree.check_parent_references());
+
+    // Verify tree structure after leaf removal
+    let root = tree.root.as_ref().unwrap();
+    let left = root.left.as_ref().unwrap();
+    assert_eq!(left.key, 3);
+    assert!(left.left.is_none()); // Node 2 was removed
+    assert_eq!(left.right.as_ref().unwrap().key, 4);
+
+    // Case 2: Remove node with one child (3)
+    assert_eq!(tree.remove(&3), Some('c'));
+    assert_eq!(tree.get(&3), None);
+
+    assert!(tree.check_parent_references());
+
+    // Verify tree structure after one-child removal
+    let root = tree.root.as_ref().unwrap();
+    assert_eq!(root.key, 5);
+    assert_eq!(root.left.as_ref().unwrap().key, 4); // Node 4 should have moved up
+
+    // Case 3: Remove node with two children (7)
+    assert_eq!(tree.remove(&7), Some('g'));
+    assert_eq!(tree.get(&7), None);
+
+    assert!(tree.check_parent_references());
+
+    // Verify tree structure after two-children removal
+    let root = tree.root.as_ref().unwrap();
+    assert_eq!(root.key, 5);
+    assert_eq!(root.right.as_ref().unwrap().key, 8); // Node 8 should have moved up
+    assert_eq!(root.right.as_ref().unwrap().left.as_ref().unwrap().key, 6); // Node 6 should stay as left child
+}
+
+#[test]
+fn test_remove_root() {
+    let mut tree = AVLTree::new();
+
+    // Simple case - tree with just the root
+    tree.insert(1, 'a');
+    assert_eq!(tree.remove(&1), Some('a'));
+    assert!(tree.is_empty());
+    assert_eq!(tree.size(), 0);
+
+    assert!(tree.check_parent_references());
+
+    // Root with two children
+    tree.insert(2, 'b');
+    tree.insert(1, 'a');
+    tree.insert(3, 'c');
+
+    assert!(tree.check_parent_references());
+
+    assert_eq!(tree.remove(&2), Some('b'));
+    assert_eq!(tree.get(&2), None);
+    assert_eq!(tree.get(&1), Some(&'a'));
+    assert_eq!(tree.get(&3), Some(&'c'));
+
+    assert!(tree.check_parent_references());
+
+    // Verify the new root is valid (either 1 or 3 depending on implementation)
+    let root_key = tree.root.as_ref().unwrap().key;
+    assert!(root_key == 1 || root_key == 3);
+}
+
+#[test]
+fn test_remove_rebalancing() {
+    let mut tree = AVLTree::new();
+
+    // Create a tree that will need rebalancing after removal
+    tree.insert(5, 'e');
+    assert_eq!(tree.root.as_ref().unwrap().find_leftmost_node().key, 5);
+
+    tree.insert(3, 'c');
+    assert_eq!(tree.root.as_ref().unwrap().find_leftmost_node().key, 3);
+
+    tree.insert(7, 'g');
+    assert_eq!(tree.root.as_ref().unwrap().find_leftmost_node().key, 3);
+
+    tree.insert(2, 'b');
+    assert_eq!(tree.root.as_ref().unwrap().find_leftmost_node().key, 2);
+
+    tree.insert(4, 'd');
+    assert_eq!(tree.root.as_ref().unwrap().find_leftmost_node().key, 2);
+
+    tree.insert(6, 'f');
+    assert_eq!(tree.root.as_ref().unwrap().find_leftmost_node().key, 2);
+
+    tree.insert(8, 'h');
+    assert_eq!(tree.root.as_ref().unwrap().find_leftmost_node().key, 2);
+
+    tree.insert(1, 'a');
+    assert_eq!(tree.root.as_ref().unwrap().find_leftmost_node().key, 1);
+
+    assert!(tree.check_parent_references());
+
+    assert_eq!(tree.root.as_ref().unwrap().find_leftmost_node().key, 1);
+
+    // Remove node 7 to trigger rebalancing
+    assert_eq!(tree.remove(&7), Some('g'));
+
+    assert!(tree.check_parent_references());
+
+    assert_eq!(tree.root.as_ref().unwrap().find_leftmost_node().key, 1);
+
+    // Verify the tree is still balanced
+    assert!(tree.nodes().all(|node| node.balance_factor().abs() <= 1));
+
+    // Verify heights are correct
+    assert!(
+        tree.nodes()
+            .all(|node| node.height == 1 + node.left_height().max(node.right_height()))
+    );
+}
+
+#[test]
+fn test_parent_pointers_after_removal() {
+    let mut tree = AVLTree::new();
+
+    // Build a test tree
+    tree.insert(5, 'e');
+    tree.insert(3, 'c');
+    tree.insert(7, 'g');
+    tree.insert(2, 'b');
+    tree.insert(4, 'd');
+    tree.insert(6, 'f');
+    tree.insert(8, 'h');
+
+    // Remove nodes that require different handling
+    tree.remove(&2); // leaf node
+    tree.remove(&7); // node with two children
+
+    assert!(tree.check_parent_references());
+}
+
+#[test]
+fn test_iterator_after_removal() {
+    let mut tree = AVLTree::new();
+
+    // Insert nodes
+    tree.insert(3, 'c');
+    tree.insert(1, 'a');
+    tree.insert(5, 'e');
+    tree.insert(2, 'b');
+    tree.insert(4, 'd');
+
+    // Remove a node in the middle
+    tree.remove(&3);
+
+    // Verify iterator traverses nodes in correct order
+    let values: Vec<(&i32, &char)> = tree.iter().collect();
+    assert_eq!(values.len(), 4);
+    assert_eq!(values[0], (&1, &'a'));
+    assert_eq!(values[1], (&2, &'b'));
+    assert_eq!(values[2], (&4, &'d'));
+    assert_eq!(values[3], (&5, &'e'));
+}
+
+#[test]
+fn test_multiple_operations() {
+    let mut tree = AVLTree::new();
+
+    // Insert some nodes
+    tree.insert(5, 'e');
+    tree.insert(3, 'c');
+    tree.insert(7, 'g');
+
+    // Remove one
+    assert_eq!(tree.remove(&3), Some('c'));
+
+    // Insert more
+    tree.insert(2, 'b');
+    tree.insert(6, 'f');
+
+    // Remove again
+    assert_eq!(tree.remove(&5), Some('e'));
+
+    // Verify final tree state
+    assert_eq!(tree.size(), 3);
+    assert_eq!(tree.get(&2), Some(&'b'));
+    assert_eq!(tree.get(&6), Some(&'f'));
+    assert_eq!(tree.get(&7), Some(&'g'));
+
+    // Verify balance
+    assert!(tree.nodes().all(|node| node.balance_factor().abs() <= 1));
+}
+
+#[test]
+fn test_remove_all() {
+    // Test removing in ascending order
+    let mut tree = AVLTree::new();
+    for i in 1..=10 {
+        tree.insert(i, (b'a' + (i - 1) as u8) as char);
+    }
+
+    for i in 1..=10 {
+        assert_eq!(tree.remove(&i), Some((b'a' + (i - 1) as u8) as char));
+        assert_eq!(tree.size(), 10 - i as usize);
+    }
+    assert!(tree.is_empty());
+
+    // Test removing in descending order
+    let mut tree = AVLTree::new();
+    for i in 1..=10 {
+        tree.insert(i, (b'a' + (i - 1) as u8) as char);
+    }
+
+    for i in (1..=10).rev() {
+        assert_eq!(tree.remove(&i), Some((b'a' + (i - 1) as u8) as char));
+        assert_eq!(tree.size(), i as usize - 1);
+    }
+    assert!(tree.is_empty());
+
+    // Test removing in random order
+    let mut tree = AVLTree::new();
+    for i in 1..=10 {
+        tree.insert(i, (b'a' + (i - 1) as u8) as char);
+    }
+
+    let order = [5, 2, 8, 1, 3, 7, 10, 4, 6, 9];
+    for (idx, &i) in order.iter().enumerate() {
+        assert_eq!(tree.remove(&i), Some((b'a' + (i - 1) as u8) as char));
+        assert_eq!(tree.size(), 10 - idx - 1);
+    }
+    assert!(tree.is_empty());
+}
+
+#[quickcheck]
+fn test_remove_operation(operations: Vec<(bool, i32, char)>) -> bool {
+    let mut avl_tree = AVLTree::new();
+    let mut std_btree = std::collections::BTreeMap::new();
+
+    for (is_insert, key, value) in operations {
+        if is_insert {
+            // Insert operation
+            if avl_tree.insert(key, value) != std_btree.insert(key, value) {
+                return false;
+            }
+        } else {
+            // Remove operation
+            if avl_tree.remove(&key) != std_btree.remove(&key) {
+                return false;
+            }
+        }
+
+        // Verify both collections have the same content
+        if avl_tree.iter().count() != std_btree.len() {
+            return false;
+        }
+
+        for (k, v) in avl_tree.iter() {
+            if std_btree.get(k) != Some(v) {
+                return false;
+            }
+        }
+
+        // Verify AVL tree properties
+        if !avl_tree.is_empty() {
+            if !avl_tree
+                .nodes()
+                .all(|node| node.balance_factor().abs() <= 1)
+            {
+                return false;
+            }
+
+            if !avl_tree
+                .nodes()
+                .all(|node| node.height == 1 + node.left_height().max(node.right_height()))
+            {
+                return false;
+            }
+        }
+    }
+
+    true
+}
+
+#[test]
+fn test_complex_removal_sequence() {
+    let mut tree = AVLTree::new();
+    let operations = [
+        (true, 50, 'A'),  // Insert 50
+        (true, 25, 'B'),  // Insert 25
+        (true, 75, 'C'),  // Insert 75
+        (false, 25, '_'), // Remove 25
+        (true, 10, 'D'),  // Insert 10
+        (true, 60, 'E'),  // Insert 60
+        (true, 80, 'F'),  // Insert 80
+        (false, 50, '_'), // Remove 50 (root)
+        (true, 5, 'G'),   // Insert 5
+        (true, 15, 'H'),  // Insert 15
+        (false, 80, '_'), // Remove 80
+        (true, 90, 'I'),  // Insert 90
+    ];
+
+    let mut std_btree = std::collections::BTreeMap::new();
+
+    for (is_insert, key, value) in operations.iter() {
+        if *is_insert {
+            tree.insert(*key, *value);
+            std_btree.insert(*key, *value);
+        } else {
+            tree.remove(key);
+            std_btree.remove(key);
+        }
+
+        // Verify tree state after each operation
+        assert_eq!(tree.size(), std_btree.len());
+
+        // Check AVL-specific invariants
+        assert!(tree.nodes().all(|node| node.balance_factor().abs() <= 1));
+
+        // Check that the trees contain the same elements
+        let avl_elements: Vec<_> = tree.iter().collect();
+        let std_elements: Vec<_> = std_btree.iter().collect();
+        assert_eq!(avl_elements, std_elements);
+    }
 }
 
 #[test]

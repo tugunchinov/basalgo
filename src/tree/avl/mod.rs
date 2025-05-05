@@ -29,15 +29,11 @@ impl<K: Ord, V> AVLTree<K, V> {
         let mut parent = std::ptr::null_mut();
 
         while let Some(node) = current_node {
+            parent = &mut **node;
+
             match key.cmp(&node.key) {
-                std::cmp::Ordering::Less => {
-                    parent = &mut **node;
-                    current_node = &mut node.left;
-                }
-                std::cmp::Ordering::Greater => {
-                    parent = &mut **node;
-                    current_node = &mut node.right;
-                }
+                std::cmp::Ordering::Less => current_node = &mut node.left,
+                std::cmp::Ordering::Greater => current_node = &mut node.right,
                 std::cmp::Ordering::Equal => {
                     let old_value = std::mem::replace(&mut node.value, value);
                     return Some(old_value);
@@ -83,25 +79,34 @@ impl<K: Ord, V> AVLTree<K, V> {
     }
 
     pub fn remove<Q: Borrow<K>>(&mut self, key: &Q) -> Option<V> {
-        let to_remove_opt = {
+        let (to_remove, node_type) = {
+            let mut node_type = NodeType::Root;
             let mut current = &mut self.root;
             while current.is_some() {
                 match key.borrow().cmp(&current.as_ref().unwrap().key) {
-                    std::cmp::Ordering::Less => current = &mut current.as_mut().unwrap().left,
-                    std::cmp::Ordering::Greater => current = &mut current.as_mut().unwrap().right,
+                    std::cmp::Ordering::Less => {
+                        current = &mut current.as_mut().unwrap().left;
+                        node_type = NodeType::LeftChild;
+                    }
+                    std::cmp::Ordering::Greater => {
+                        current = &mut current.as_mut().unwrap().right;
+                        node_type = NodeType::RightChild;
+                    }
                     std::cmp::Ordering::Equal => break,
                 }
             }
 
-            current.take()
+            (current.take()?, node_type)
         };
 
-        if let Some(to_remove) = to_remove_opt {
-            let removed = self.remove_node(to_remove);
-            self.size -= 1;
-            Some(removed.value)
+        self.size -= 1;
+
+        if to_remove.left.is_none() && to_remove.right.is_none() {
+            Some(self.remove_leaf_node(to_remove).value)
+        } else if to_remove.left.is_some() && to_remove.right.is_some() {
+            Some(self.remove_two_children_node(to_remove, node_type).value)
         } else {
-            None
+            Some(self.remove_one_child_node(to_remove, node_type).value)
         }
     }
 
@@ -141,14 +146,18 @@ impl<K: Ord, V> AVLTree<K, V> {
 }
 
 impl<K, V> AVLTree<K, V> {
-    fn update_heights_and_rebalance(&mut self, from_node: &mut AVLTreeNode<K, V>, stop_factor: i8) {
+    fn update_heights_and_rebalance(
+        &mut self,
+        from_node: &mut AVLTreeNode<K, V>,
+        _stop_factor: i8,
+    ) {
         let mut current_node = from_node;
         loop {
             current_node.update_height();
 
-            if current_node.balance_factor().abs() == stop_factor {
-                return;
-            }
+            // if current_node.balance_factor().abs() == stop_factor {
+            //     return;
+            // }
 
             if current_node.balance_factor().abs() >= 2 {
                 let current_node_in_tree = self.get_mutable_node_reference(current_node);
@@ -179,9 +188,9 @@ impl<K, V> AVLTree<K, V> {
                     }
                 }
 
-                if current_node.balance_factor().abs() == stop_factor {
-                    return;
-                }
+                // if current_node.balance_factor().abs() == stop_factor {
+                //     return;
+                // }
             }
 
             if let Some(parent_node) = unsafe { current_node.parent.as_mut() } {
@@ -192,73 +201,117 @@ impl<K, V> AVLTree<K, V> {
         }
     }
 
-    fn remove_node(&mut self, mut node: Box<AVLTreeNode<K, V>>) -> Box<AVLTreeNode<K, V>> {
+    fn remove_leaf_node(&mut self, mut node: Box<AVLTreeNode<K, V>>) -> Box<AVLTreeNode<K, V>> {
         let parent_node = unsafe { node.parent.as_mut() };
 
-        if node.left.is_none() && node.right.is_none() {
-            if let Some(parent_node) = parent_node {
-                // TODO: can't check parent: it's taken!!!!!!!!!!!!!!!!!
+        if let Some(parent_node) = parent_node {
+            self.update_heights_and_rebalance(parent_node, 1);
+        }
 
-                parent_node.replace_child(&mut node, None);
-                self.update_heights_and_rebalance(parent_node, 1);
-            } else {
-                return node;
+        node
+    }
+
+    fn remove_one_child_node(
+        &mut self,
+        mut node: Box<AVLTreeNode<K, V>>,
+        node_type: NodeType,
+    ) -> Box<AVLTreeNode<K, V>> {
+        let parent_node = unsafe { node.parent.as_mut() };
+
+        let mut child = if node.left.is_some() {
+            node.left.take().unwrap()
+        } else {
+            node.right.take().unwrap()
+        };
+
+        if let Some(parent_node) = parent_node {
+            child.parent = parent_node;
+
+            match node_type {
+                NodeType::LeftChild => parent_node.left = Some(child),
+                NodeType::RightChild => parent_node.right = Some(child),
+                NodeType::Root => unreachable!(),
             }
-        } else if node.left.is_some() && node.right.is_some() {
-            let successor_ref = node.right.as_ref().unwrap().find_leftmost_node();
-            let successor_parent = successor_ref.parent;
 
-            let successor_node = self
-                .get_mutable_node_reference(successor_ref)
-                .take()
-                .unwrap();
+            self.update_heights_and_rebalance(parent_node, 1);
+        } else {
+            child.parent = std::ptr::null_mut();
+            self.root = Some(child);
+        }
 
-            // swap nodes
+        node
+    }
 
-            let mut successor_ref;
-            if let Some(parent_node) = parent_node {
-                successor_ref = parent_node.replace_child(&mut node, Some(successor_node));
-            } else {
-                self.root = Some(successor_node);
-                successor_ref = self.root.as_mut().unwrap();
-                successor_ref.parent = std::ptr::null_mut();
+    fn remove_two_children_node(
+        &mut self,
+        mut node: Box<AVLTreeNode<K, V>>,
+        node_type: NodeType,
+    ) -> Box<AVLTreeNode<K, V>> {
+        let parent_node = unsafe { node.parent.as_mut() };
+
+        let successor_ref = node.right.as_ref().unwrap().find_leftmost_node();
+        let successor_parent = successor_ref.parent;
+
+        let mut successor_node = self
+            .get_mutable_node_reference(successor_ref)
+            .take()
+            .unwrap();
+
+        let is_successor_direct_child = node.right.is_none();
+
+        // swap nodes
+
+        successor_node.left = node.left.take().map(|mut node| {
+            node.parent = &mut *successor_node;
+            node
+        });
+
+        if !is_successor_direct_child {
+            std::mem::swap(&mut node.right, &mut successor_node.right);
+            successor_node.right.as_mut().unwrap().parent = &mut *successor_node;
+        }
+
+        let successor_ref = if let Some(parent_node) = parent_node {
+            successor_node.parent = parent_node;
+            match node_type {
+                NodeType::LeftChild => {
+                    parent_node.left = Some(successor_node);
+                    &mut **parent_node.left.as_mut().unwrap()
+                }
+                NodeType::RightChild => {
+                    parent_node.right = Some(successor_node);
+                    &mut **parent_node.right.as_mut().unwrap()
+                }
+                NodeType::Root => unreachable!(),
+            }
+        } else {
+            successor_node.parent = std::ptr::null_mut();
+            self.root = Some(successor_node);
+            &mut **self.root.as_mut().unwrap()
+        };
+
+        if !is_successor_direct_child {
+            let replacing_node = {
+                let successor_parent = unsafe { &mut *successor_parent };
+                successor_parent.left = node.right.take();
+                successor_parent.left.as_mut()
             };
 
-            successor_ref.left = node.left.take();
-
-            if std::ptr::eq(&**node.right.as_ref().unwrap(), successor_ref) {
-                node.right = None;
-            } else {
-                std::mem::swap(&mut node.right, &mut successor_ref.right);
-
-                let replacing_node = {
-                    let successor_parent = unsafe { &mut *successor_parent };
-                    successor_parent.left = node.right.take();
-                    successor_parent.left.as_mut()
-                };
-
-                if let Some(node) = replacing_node {
-                    node.parent = successor_parent;
-                }
+            if let Some(node) = replacing_node {
+                node.parent = successor_parent;
             }
 
+            successor_ref.update_height();
             let successor_parent = unsafe { &mut *successor_parent };
             self.update_heights_and_rebalance(successor_parent, 1);
         } else {
-            let mut child = if node.left.is_some() {
-                node.left.take().unwrap()
-            } else {
-                node.right.take().unwrap()
+            // dirty hack
+            let successor_ref = unsafe {
+                (successor_ref as *const _ as *mut AVLTreeNode<K, V>)
+                    .as_mut()
+                    .unwrap()
             };
-
-            if let Some(parent_node) = parent_node {
-                parent_node.replace_child(&mut node, Some(child));
-                self.update_heights_and_rebalance(parent_node, 1);
-            } else {
-                child.parent = std::ptr::null_mut();
-                self.root = Some(child);
-                return node;
-            }
+            self.update_heights_and_rebalance(successor_ref, 1);
         }
 
         node
@@ -304,4 +357,10 @@ impl<K: Ord, V> Default for AVLTree<K, V> {
     fn default() -> Self {
         Self::new()
     }
+}
+
+enum NodeType {
+    LeftChild,
+    RightChild,
+    Root,
 }
