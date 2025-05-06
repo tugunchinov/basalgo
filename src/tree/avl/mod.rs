@@ -151,10 +151,6 @@ impl<K, V> AVLTree<K, V> {
         loop {
             current_node.update_height();
 
-            // if current_node.balance_factor().abs() == stop_factor {
-            //     return;
-            // }
-
             if current_node.balance_factor().abs() >= 2 {
                 let current_node_in_tree = self.get_mutable_node_reference(current_node);
 
@@ -183,10 +179,6 @@ impl<K, V> AVLTree<K, V> {
                         AVLTreeNode::big_rotate_right(current_node_in_tree);
                     }
                 }
-
-                // if current_node.balance_factor().abs() == stop_factor {
-                //     return;
-                // }
             }
 
             if let Some(parent_node) = unsafe { current_node.parent.as_mut() } {

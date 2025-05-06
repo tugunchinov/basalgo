@@ -3,18 +3,7 @@ pub struct AVLTreeNode<K, V> {
     pub value: V,
     pub left: Option<Box<AVLTreeNode<K, V>>>,
     pub right: Option<Box<AVLTreeNode<K, V>>>,
-
-    /// SAFETY: This pointer lives as long as the node itself.
-    /// Used for iterator
     pub parent: *mut AVLTreeNode<K, V>,
-
-    // TODO:
-    // Так как высоты левых и правых поддеревьев в АВЛ-дереве отличаются максимум на 1
-    // , то мы будем хранить не всю высоту дерева, а некоторое число, которое будет показывать, какое поддерево больше, или равны ли они, назовём фактор баланса. Таким образом в каждом узле будет храниться 1
-    //  — если высота правого поддерева выше левого, 0
-    //  — если высоты равны, и −1
-    //  — если правое поддерево выше левого.
-    // TODO: use stop_factor
     pub height: u32,
 }
 
