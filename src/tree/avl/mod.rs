@@ -48,7 +48,7 @@ impl<K: Ord, V> AVLTree<K, V> {
         if let Some(node) = current_node.as_mut() {
             // Start rebalancing from the parent of the inserted node
             if !node.parent.is_null() {
-                let parent_node = unsafe { &mut *node.parent };
+                let parent_node = unsafe { &mut *parent };
                 self.update_heights_and_rebalance(parent_node, 0);
             }
         }
@@ -59,19 +59,15 @@ impl<K: Ord, V> AVLTree<K, V> {
     }
 
     pub fn get<Q: Borrow<K>>(&self, key: &Q) -> Option<&V> {
-        let mut current_node = &self.root;
+        let mut current_node = self.root.as_ref()?;
 
-        while let Some(node) = current_node {
-            match key.borrow().cmp(&node.key) {
-                std::cmp::Ordering::Less => current_node = &node.left,
-                std::cmp::Ordering::Greater => current_node = &node.right,
-                std::cmp::Ordering::Equal => {
-                    return Some(&node.value);
-                }
+        loop {
+            match key.borrow().cmp(&current_node.key) {
+                std::cmp::Ordering::Less => current_node = current_node.left.as_ref()?,
+                std::cmp::Ordering::Greater => current_node = current_node.right.as_ref()?,
+                std::cmp::Ordering::Equal => return Some(&current_node.value),
             }
         }
-
-        None
     }
 
     pub fn contains<Q: Borrow<K>>(&self, key: &Q) -> bool {
@@ -208,6 +204,7 @@ impl<K, V> AVLTree<K, V> {
             self.update_heights_and_rebalance(parent_node, 1);
         }
 
+        node.parent = std::ptr::null_mut();
         node
     }
 
@@ -239,6 +236,7 @@ impl<K, V> AVLTree<K, V> {
             self.root = Some(child);
         }
 
+        node.parent = std::ptr::null_mut();
         node
     }
 
@@ -314,6 +312,7 @@ impl<K, V> AVLTree<K, V> {
             self.update_heights_and_rebalance(successor_ref, 1);
         }
 
+        node.parent = std::ptr::null_mut();
         node
     }
 

@@ -86,10 +86,8 @@ impl<K, V> AVLTreeNode<K, V> {
             return;
         };
 
-        let root_ptr = &mut *root;
-
         if let Some(left) = right_child.left.as_mut() {
-            left.parent = root_ptr;
+            left.parent = &mut *root;
         }
         root.right = right_child.left.take();
 
@@ -119,10 +117,8 @@ impl<K, V> AVLTreeNode<K, V> {
             return;
         };
 
-        let root_ptr = &mut *root;
-
         if let Some(right) = left_child.right.as_mut() {
-            right.parent = root_ptr
+            right.parent = &mut *root;
         }
         root.left = left_child.right.take();
 
