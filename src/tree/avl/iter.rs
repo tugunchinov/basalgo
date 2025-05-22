@@ -13,6 +13,7 @@ pub fn get_value<K, V>(node: &AVLTreeNode<K, V>) -> &V {
     &node.value
 }
 
+#[cfg(test)]
 pub fn get_node<K, V>(node: &AVLTreeNode<K, V>) -> &AVLTreeNode<K, V> {
     node
 }
@@ -28,6 +29,7 @@ pub type AvlTreeKeyIterator<'a, K, V> = AvlTreeIterator<'a, K, V, &'a K>;
 
 pub type AvlTreeValueIterator<'a, K, V> = AvlTreeIterator<'a, K, V, &'a V>;
 
+#[cfg(test)]
 pub type AvlTreeNodeIterator<'a, K, V> = AvlTreeIterator<'a, K, V, &'a AVLTreeNode<K, V>>;
 
 impl<'a, K, V, R> AvlTreeIterator<'a, K, V, R> {

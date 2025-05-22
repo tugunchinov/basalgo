@@ -5,11 +5,15 @@ mod node;
 mod tests;
 
 use crate::tree::avl::iter::{
-    AvlTreeKeyIterator, AvlTreeKeyValueIterator, AvlTreeNodeIterator, AvlTreeValueIterator,
-    get_key, get_node, get_value,
+    AvlTreeKeyIterator, AvlTreeKeyValueIterator, AvlTreeValueIterator, get_key, get_value,
 };
 use crate::tree::avl::node::AVLTreeNode;
 use std::borrow::Borrow;
+
+#[cfg(test)]
+use crate::tree::avl::iter::AvlTreeNodeIterator;
+#[cfg(test)]
+use crate::tree::avl::iter::get_node;
 
 pub struct AVLTree<K, V> {
     root: Option<Box<AVLTreeNode<K, V>>>,
@@ -339,6 +343,7 @@ impl<K, V> AVLTree<K, V> {
         panic!("broken tree");
     }
 
+    #[cfg(test)]
     fn nodes(&self) -> AvlTreeNodeIterator<K, V> {
         AvlTreeNodeIterator::new(self.root.as_deref(), get_node)
     }

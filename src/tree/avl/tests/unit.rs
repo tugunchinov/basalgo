@@ -256,7 +256,7 @@ fn test_tree_structure() {
 
 #[quickcheck]
 fn test_tree_invariants(values: Vec<(i32, char)>) -> bool {
-    let mut tree = values.iter().cloned().collect::<AVLTree<_, _>>();
+    let tree = values.iter().cloned().collect::<AVLTree<_, _>>();
 
     // Check if the tree satisfies the BST property
     fn is_bst<K: Ord, V>(

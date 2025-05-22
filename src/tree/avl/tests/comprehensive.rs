@@ -1,7 +1,6 @@
 use crate::tree::avl::AVLTree;
 use quickcheck_macros::quickcheck;
-use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::Rng;
 use std::collections::BTreeMap;
 use std::collections::HashSet;
 
