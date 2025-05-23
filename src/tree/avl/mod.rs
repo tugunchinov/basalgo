@@ -15,12 +15,12 @@ use crate::tree::avl::iter::AvlTreeNodeIterator;
 #[cfg(test)]
 use crate::tree::avl::iter::get_node;
 
-pub struct AVLTree<K, V> {
+pub struct AvlTree<K, V> {
     root: Option<Box<AVLTreeNode<K, V>>>,
     size: usize,
 }
 
-impl<K: Ord, V> AVLTree<K, V> {
+impl<K: Ord, V> AvlTree<K, V> {
     pub fn new() -> Self {
         Self {
             root: None,
@@ -110,14 +110,6 @@ impl<K: Ord, V> AVLTree<K, V> {
         }
     }
 
-    pub fn size(&self) -> usize {
-        self.size
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.size == 0
-    }
-
     pub fn min(&self) -> Option<(&K, &V)> {
         self.root.as_ref().map(|root| {
             let node = root.find_leftmost_node();
@@ -145,7 +137,15 @@ impl<K: Ord, V> AVLTree<K, V> {
     }
 }
 
-impl<K, V> AVLTree<K, V> {
+impl<K, V> AvlTree<K, V> {
+    pub fn size(&self) -> usize {
+        self.size
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.size == 0
+    }
+
     fn update_heights_and_rebalance(
         &mut self,
         from_node: &mut AVLTreeNode<K, V>,
@@ -349,7 +349,7 @@ impl<K, V> AVLTree<K, V> {
     }
 }
 
-impl<K: Ord, V> Default for AVLTree<K, V> {
+impl<K: Ord, V> Default for AvlTree<K, V> {
     fn default() -> Self {
         Self::new()
     }

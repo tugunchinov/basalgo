@@ -1,10 +1,10 @@
-use crate::tree::AVLTree;
+use crate::tree::AvlTree;
 use crate::tree::avl::node::AVLTreeNode;
 
 mod comprehensive;
 mod unit;
 
-impl<K: Ord, V> AVLTree<K, V> {
+impl<K: Ord, V> AvlTree<K, V> {
     pub fn check_parent_references(&self) -> bool {
         if self.root.is_none() {
             return true;

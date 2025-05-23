@@ -1,4 +1,4 @@
-use crate::tree::avl::AVLTree;
+use crate::tree::avl::AvlTree;
 use crate::tree::avl::node::AVLTreeNode;
 
 pub fn get_key_value<K, V>(node: &AVLTreeNode<K, V>) -> (&K, &V) {
@@ -84,7 +84,7 @@ impl<K, V, R> Iterator for AvlTreeIterator<'_, K, V, R> {
     }
 }
 
-impl<K: Ord, V> FromIterator<(K, V)> for AVLTree<K, V> {
+impl<K: Ord, V> FromIterator<(K, V)> for AvlTree<K, V> {
     fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
         let mut tree = Self::new();
 
@@ -96,11 +96,56 @@ impl<K: Ord, V> FromIterator<(K, V)> for AVLTree<K, V> {
     }
 }
 
-impl<'a, K, V> IntoIterator for &'a AVLTree<K, V> {
+impl<'a, K, V> IntoIterator for &'a AvlTree<K, V> {
     type Item = (&'a K, &'a V);
     type IntoIter = AvlTreeKeyValueIterator<'a, K, V>;
 
     fn into_iter(self) -> Self::IntoIter {
         AvlTreeKeyValueIterator::new(self.root.as_deref(), get_key_value)
+    }
+}
+
+pub struct AvlTreeOwnedIterator<K, V> {
+    stack: Vec<Box<AVLTreeNode<K, V>>>,
+}
+
+impl<K, V> AvlTreeOwnedIterator<K, V> {
+    fn new(tree: AvlTree<K, V>) -> Self {
+        let mut stack = Vec::with_capacity(tree.size());
+        let mut current = tree.root;
+
+        while let Some(mut node) = current {
+            node.parent = std::ptr::null_mut();
+            current = node.left.take();
+            stack.push(node);
+        }
+
+        Self { stack }
+    }
+}
+
+impl<K, V> Iterator for AvlTreeOwnedIterator<K, V> {
+    type Item = (K, V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut node = self.stack.pop()?;
+
+        let mut current = node.right.take();
+        while let Some(mut node) = current {
+            node.parent = std::ptr::null_mut();
+            current = node.left.take();
+            self.stack.push(node);
+        }
+
+        Some((node.key, node.value))
+    }
+}
+
+impl<K, V> IntoIterator for AvlTree<K, V> {
+    type Item = (K, V);
+    type IntoIter = AvlTreeOwnedIterator<K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        AvlTreeOwnedIterator::new(self)
     }
 }

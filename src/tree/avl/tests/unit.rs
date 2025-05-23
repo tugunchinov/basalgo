@@ -1,9 +1,9 @@
-use crate::tree::avl::{AVLTree, AVLTreeNode};
+use crate::tree::avl::{AVLTreeNode, AvlTree};
 use quickcheck_macros::quickcheck;
 
 #[test]
 fn test_get_insert_simple() {
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
 
     assert_eq!(tree.get(&1), None);
 
@@ -37,7 +37,7 @@ fn test_get_insert_simple() {
 
 #[quickcheck]
 fn test_get_insert(values: Vec<(i32, char)>, keys: Vec<i32>) -> bool {
-    let mut avl_tree = AVLTree::new();
+    let mut avl_tree = AvlTree::new();
     let mut std_btree = std::collections::BTreeMap::new();
 
     for (key, value) in values {
@@ -57,7 +57,7 @@ fn test_get_insert(values: Vec<(i32, char)>, keys: Vec<i32>) -> bool {
 
 #[test]
 fn test_remove_simple() {
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
 
     assert_eq!(tree.remove(&1), None);
 
@@ -96,7 +96,7 @@ fn test_remove_simple() {
 
 #[quickcheck]
 fn test_iterator(values: Vec<(i32, char)>) -> bool {
-    let avl_tree = values.iter().cloned().collect::<AVLTree<_, _>>();
+    let avl_tree = values.iter().cloned().collect::<AvlTree<_, _>>();
     let std_btree = values
         .iter()
         .cloned()
@@ -110,7 +110,7 @@ fn test_iterator(values: Vec<(i32, char)>) -> bool {
 
 #[quickcheck]
 fn test_height(values: Vec<(i32, char)>) -> bool {
-    let avl_tree = values.into_iter().collect::<AVLTree<_, _>>();
+    let avl_tree = values.into_iter().collect::<AvlTree<_, _>>();
 
     avl_tree
         .nodes()
@@ -119,7 +119,7 @@ fn test_height(values: Vec<(i32, char)>) -> bool {
 
 #[quickcheck]
 fn test_balance_factor(values: Vec<(i32, char)>) -> bool {
-    let avl_tree = values.into_iter().collect::<AVLTree<_, _>>();
+    let avl_tree = values.into_iter().collect::<AvlTree<_, _>>();
 
     avl_tree
         .nodes()
@@ -128,7 +128,7 @@ fn test_balance_factor(values: Vec<(i32, char)>) -> bool {
 
 #[test]
 fn test_corner_cases() {
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
 
     assert!(tree.is_empty());
     assert_eq!(tree.size(), 0);
@@ -157,13 +157,13 @@ fn test_corner_cases() {
 
 #[test]
 fn test_iterator_empty_tree() {
-    let tree: AVLTree<i32, char> = AVLTree::new();
+    let tree: AvlTree<i32, char> = AvlTree::new();
     assert_eq!(tree.iter().next(), None);
 }
 
 #[test]
 fn test_min_max() {
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
 
     assert_eq!(tree.min(), None);
     assert_eq!(tree.max(), None);
@@ -181,7 +181,7 @@ fn test_min_max() {
 #[test]
 fn test_specific_rotations() {
     // Test left rotation
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
     tree.insert(1, 'a');
     tree.insert(2, 'b');
     tree.insert(3, 'c');
@@ -192,7 +192,7 @@ fn test_specific_rotations() {
     assert_eq!(root_key, 2);
 
     // Test right rotation
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
     tree.insert(3, 'c');
     tree.insert(2, 'b');
     tree.insert(1, 'a');
@@ -203,7 +203,7 @@ fn test_specific_rotations() {
     assert_eq!(root_key, 2);
 
     // Test left-right rotation
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
     tree.insert(3, 'c');
     tree.insert(1, 'a');
     tree.insert(2, 'b');
@@ -214,7 +214,7 @@ fn test_specific_rotations() {
     assert_eq!(root_key, 2);
 
     // Test right-left rotation
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
     tree.insert(1, 'a');
     tree.insert(3, 'c');
     tree.insert(2, 'b');
@@ -227,7 +227,7 @@ fn test_specific_rotations() {
 
 #[test]
 fn test_tree_structure() {
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
     tree.insert(5, 'e');
     tree.insert(3, 'c');
     tree.insert(7, 'g');
@@ -256,7 +256,7 @@ fn test_tree_structure() {
 
 #[quickcheck]
 fn test_tree_invariants(values: Vec<(i32, char)>) -> bool {
-    let tree = values.iter().cloned().collect::<AVLTree<_, _>>();
+    let tree = values.iter().cloned().collect::<AvlTree<_, _>>();
 
     // Check if the tree satisfies the BST property
     fn is_bst<K: Ord, V>(
@@ -323,7 +323,7 @@ fn test_tree_invariants(values: Vec<(i32, char)>) -> bool {
 
 #[test]
 fn test_remove_cases() {
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
 
     // Build a specific tree structure for testing the three removal cases:
     //        5
@@ -381,7 +381,7 @@ fn test_remove_cases() {
 
 #[test]
 fn test_remove_root() {
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
 
     // Simple case - tree with just the root
     tree.insert(1, 'a');
@@ -412,7 +412,7 @@ fn test_remove_root() {
 
 #[test]
 fn test_remove_rebalancing() {
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
 
     // Create a tree that will need rebalancing after removal
     tree.insert(5, 'e');
@@ -462,7 +462,7 @@ fn test_remove_rebalancing() {
 
 #[test]
 fn test_parent_pointers_after_removal() {
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
 
     // Build a test tree
     tree.insert(5, 'e');
@@ -482,7 +482,7 @@ fn test_parent_pointers_after_removal() {
 
 #[test]
 fn test_iterator_after_removal() {
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
 
     // Insert nodes
     tree.insert(3, 'c');
@@ -505,7 +505,7 @@ fn test_iterator_after_removal() {
 
 #[test]
 fn test_multiple_operations() {
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
 
     // Insert some nodes
     tree.insert(5, 'e');
@@ -535,7 +535,7 @@ fn test_multiple_operations() {
 #[test]
 fn test_remove_all() {
     // Test removing in ascending order
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
     for i in 1..=10 {
         tree.insert(i, (b'a' + (i - 1) as u8) as char);
     }
@@ -547,7 +547,7 @@ fn test_remove_all() {
     assert!(tree.is_empty());
 
     // Test removing in descending order
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
     for i in 1..=10 {
         tree.insert(i, (b'a' + (i - 1) as u8) as char);
     }
@@ -559,7 +559,7 @@ fn test_remove_all() {
     assert!(tree.is_empty());
 
     // Test removing in random order
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
     for i in 1..=10 {
         tree.insert(i, (b'a' + (i - 1) as u8) as char);
     }
@@ -574,7 +574,7 @@ fn test_remove_all() {
 
 #[quickcheck]
 fn test_remove_operation(operations: Vec<(bool, i32, char)>) -> bool {
-    let mut avl_tree = AVLTree::new();
+    let mut avl_tree = AvlTree::new();
     let mut std_btree = std::collections::BTreeMap::new();
 
     for (is_insert, key, value) in operations {
@@ -624,7 +624,7 @@ fn test_remove_operation(operations: Vec<(bool, i32, char)>) -> bool {
 
 #[test]
 fn test_complex_removal_sequence() {
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
     let operations = [
         (true, 50, 'A'),  // Insert 50
         (true, 25, 'B'),  // Insert 25
@@ -665,9 +665,114 @@ fn test_complex_removal_sequence() {
 }
 
 #[test]
+fn test_into_owned_iterator() {
+    let mut tree = AvlTree::new();
+    let data = vec![
+        (4, "four"),
+        (2, "two"),
+        (6, "six"),
+        (1, "one"),
+        (3, "three"),
+        (5, "five"),
+        (7, "seven"),
+    ];
+
+    for (k, v) in &data {
+        tree.insert(*k, *v);
+    }
+
+    let items: Vec<_> = tree.into_iter().collect();
+    assert_eq!(
+        items,
+        vec![
+            (1, "one"),
+            (2, "two"),
+            (3, "three"),
+            (4, "four"),
+            (5, "five"),
+            (6, "six"),
+            (7, "seven")
+        ]
+    );
+}
+
+#[test]
+fn test_consuming_iterator_vs_borrowing_iterator() {
+    let mut tree1 = AvlTree::new();
+    let mut tree2 = AvlTree::new();
+
+    let data = vec![10, 5, 15, 3, 7, 12, 20, 1, 4, 6, 8, 11, 13, 18, 25];
+    for &val in &data {
+        tree1.insert(val, val.to_string());
+        tree2.insert(val, val.to_string());
+    }
+
+    let borrowed: Vec<_> = tree1.iter().map(|(k, v)| (*k, v.clone())).collect();
+
+    let consumed: Vec<_> = tree2.into_iter().collect();
+
+    assert_eq!(borrowed, consumed);
+
+    assert_eq!(tree1.size(), data.len());
+}
+
+#[test]
+fn test_next_and_collect() {
+    let mut tree = AvlTree::new();
+    tree.insert(1, "one");
+    tree.insert(2, "two");
+    tree.insert(3, "three");
+
+    let original_size = tree.size();
+    assert_eq!(original_size, 3);
+
+    let mut iter = tree.into_iter();
+
+    assert_eq!(iter.next(), Some((1, "one")));
+
+    let remaining: Vec<_> = iter.collect();
+    assert_eq!(remaining, vec![(2, "two"), (3, "three")]);
+}
+
+#[test]
+fn test_large_random_tree() {
+    use std::collections::BTreeMap;
+
+    let mut tree = AvlTree::new();
+    let mut expected = BTreeMap::new();
+
+    let values: [i32; 1000] = rand::random();
+    for val in values {
+        tree.insert(val, format!("value_{}", val));
+        expected.insert(val, format!("value_{}", val));
+    }
+
+    let tree_items: Vec<_> = tree.into_iter().collect();
+    let expected_items: Vec<_> = expected.into_iter().collect();
+
+    assert_eq!(tree_items, expected_items);
+}
+
+#[test]
+fn test_iterator_partial_consumption() {
+    let mut tree = AvlTree::new();
+    for i in 1..=10 {
+        tree.insert(i, i.to_string());
+    }
+
+    let mut iter = tree.into_iter();
+
+    assert_eq!(iter.next(), Some((1, "1".to_string())));
+    assert_eq!(iter.next(), Some((2, "2".to_string())));
+    assert_eq!(iter.next(), Some((3, "3".to_string())));
+
+    drop(iter);
+}
+
+#[test]
 fn playground() {
     let vals = vec![(7, 'a'), (5, 'b'), (10, 'c'), (6, 'd')];
-    let tree = vals.into_iter().collect::<AVLTree<_, _>>();
+    let tree = vals.into_iter().collect::<AvlTree<_, _>>();
 
     let vals = tree.iter().collect::<Vec<_>>();
     println!("{:?}", vals);

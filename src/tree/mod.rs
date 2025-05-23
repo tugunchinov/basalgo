@@ -1,3 +1,3 @@
 mod avl;
 
-pub use avl::AVLTree;
+pub use avl::AvlTree;

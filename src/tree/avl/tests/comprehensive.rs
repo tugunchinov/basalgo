@@ -1,4 +1,4 @@
-use crate::tree::avl::AVLTree;
+use crate::tree::avl::AvlTree;
 use quickcheck_macros::quickcheck;
 use rand::Rng;
 use std::collections::BTreeMap;
@@ -34,7 +34,7 @@ fn test_complex_mixed_operations() {
 
     // Keep track of expected state with a BTreeMap
     let mut expected = BTreeMap::new();
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
 
     for (idx, &(is_insert, key, value)) in operations.iter().enumerate() {
         if is_insert {
@@ -135,7 +135,7 @@ fn test_complex_mixed_operations() {
 
 #[test]
 fn test_large_tree_operations() {
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
     let mut reference = BTreeMap::new();
 
     // Insert 1000 items
@@ -191,7 +191,7 @@ fn test_large_tree_operations() {
 #[test]
 fn test_extreme_imbalanced_insertion() {
     // Test inserting in ascending order
-    let mut ascending_tree = AVLTree::new();
+    let mut ascending_tree = AvlTree::new();
     for i in 0..100 {
         ascending_tree.insert(i, (b'a' + (i % 26) as u8) as char);
 
@@ -204,7 +204,7 @@ fn test_extreme_imbalanced_insertion() {
     }
 
     // Test inserting in descending order
-    let mut descending_tree = AVLTree::new();
+    let mut descending_tree = AvlTree::new();
     for i in (0..100).rev() {
         descending_tree.insert(i, (b'a' + (i % 26) as u8) as char);
 
@@ -238,7 +238,7 @@ fn test_extreme_imbalanced_insertion() {
 #[test]
 fn test_zigzag_insertion_removal() {
     // Create a specific insertion pattern that tests all 4 rotation types
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
 
     // Insert in a pattern that causes zigzag insertions
     let insertions = [
@@ -290,7 +290,7 @@ fn test_random_operations() {
     for _ in 0..1000 {
         let mut rng = rand::rng();
 
-        let mut tree = AVLTree::new();
+        let mut tree = AvlTree::new();
         let mut reference = BTreeMap::new();
 
         // Perform 1000 random operations
@@ -340,7 +340,7 @@ fn test_random_operations() {
 
 #[test]
 fn test_duplicate_keys() {
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
 
     // Insert a key multiple times
     assert_eq!(tree.insert(10, 'a'), None);
@@ -359,7 +359,7 @@ fn test_duplicate_keys() {
 
 #[test]
 fn test_min_max_edge_cases() {
-    let mut tree = AVLTree::<i32, char>::new();
+    let mut tree = AvlTree::<i32, char>::new();
 
     // Empty tree
     assert_eq!(tree.min(), None);
@@ -391,7 +391,7 @@ fn test_min_max_edge_cases() {
 
 #[test]
 fn test_iterator_coverage() {
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
 
     // Test iterators on empty tree
     assert_eq!(tree.iter().next(), None);
@@ -429,7 +429,7 @@ fn test_iterator_coverage() {
 
 #[test]
 fn test_parent_pointers_correctness() {
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
 
     // Create a tree with various rotations
     for i in [5, 3, 7, 2, 4, 6, 8, 1, 9] {
@@ -447,7 +447,7 @@ fn test_parent_pointers_correctness() {
 
 #[quickcheck]
 fn test_all_invariants_maintained(operations: Vec<(bool, i32, char)>) -> bool {
-    let mut tree = AVLTree::new();
+    let mut tree = AvlTree::new();
 
     // Track all inserted keys
     let mut inserted_keys = HashSet::new();
