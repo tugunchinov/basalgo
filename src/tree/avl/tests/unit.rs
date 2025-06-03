@@ -306,7 +306,7 @@ fn test_tree_invariants(values: Vec<(i32, char)>) -> bool {
         match node {
             None => true,
             Some(node) => {
-                if node.parent as *const _ != parent {
+                if !std::ptr::eq(node.parent, parent) {
                     return false;
                 }
 

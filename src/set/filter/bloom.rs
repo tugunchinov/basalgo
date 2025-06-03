@@ -118,14 +118,12 @@ mod tests {
         let mut filter = BloomFilter::new();
         filter.insert(&"test1");
 
-        let mut false_positive_found = false;
         for i in 0..1000 {
             let test_str = format!("not_inserted_{}", i);
             if !filter.contains(&"test1") {
                 panic!("False negative detected");
             }
             if filter.contains(&test_str) {
-                false_positive_found = true;
                 break;
             }
         }
